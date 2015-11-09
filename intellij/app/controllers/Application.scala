@@ -1,7 +1,7 @@
 package controllers
 
-import models.Artist
-import play.api.libs.json.JsValue
+import models.{Subscription, User, Artist}
+import play.api.libs.json.{Json, JsValue}
 
 //import com.esri.core.geometry.Polygon
 import play.api.mvc._
@@ -72,11 +72,47 @@ object Application extends Controller {
 //  }
 
   def subscribe = Action(parse.json) {
-    request => {
+    request =>
       val reqData: JsValue = request.body
       val emailId: String = (reqData \ "emailId").as[String]
       val interval: String = (reqData \ "interval").as[String]
       Ok(s"added $emailId to subscriber's list and will send updates every $interval\n")
-    }
+  }
+
+  import java.io.File
+
+  def createProfile = Action(parse.multipartFormData) {
+    request =>
+      val formData = request.body.asFormUrlEncoded
+      val email: String = formData.get("email").get(0)
+      val name: String = formData.get("name").get(0)
+      val userId: Long = User(email, name).save
+      request.body.file("displayPic").map {
+        picture =>
+          val path = "/socialize/user/"
+          if (!picture.filename.isEmpty) {
+            picture.ref.moveTo(new File(path + userId + ".jpeg"))
+          }
+          Ok("successfully added user")
+      }.getOrElse {
+        BadRequest("failed to add user")
+      }
+  }
+
+  val parseAsSubscription = parse.using {
+    request =>
+      parse.json.map {
+        body =>
+          val emailId: String = (body \ "emailId").as[String]
+          val fromDate: String = (body \ "fromDate").as[String]
+          Subscription(emailId, fromDate)
+      }
+  }
+
+  implicit val subWrites = Json.writes[Subscription]
+  def getSub = Action(parseAsSubscription) {
+    request =>
+      val subscription: Subscription = request.body
+      Ok(Json.toJson(subscription))
   }
 }
