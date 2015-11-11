@@ -1,7 +1,12 @@
 package controllers
 
+import java.util.Date
+
 import models.{Subscription, User, Artist}
 import play.api.libs.json.{Json, JsValue}
+
+import scala.concurrent.Future
+import scala.xml.Node
 
 //import com.esri.core.geometry.Polygon
 import play.api.mvc._
@@ -71,7 +76,15 @@ object Application extends Controller {
 //    request => Ok("added " + request.body + " words mofo\n")
 //  }
 
-  def subscribe = Action(parse.json) {
+//  def subscribe = Action(parse.json) {
+//    request =>
+//      val reqData: JsValue = request.body
+//      val emailId: String = (reqData \ "emailId").as[String]
+//      val interval: String = (reqData \ "interval").as[String]
+//      Ok(s"added $emailId to subscriber's list and will send updates every $interval\n")
+//  }
+
+  def subscribe = Action(parse.tolerantJson) {
     request =>
       val reqData: JsValue = request.body
       val emailId: String = (reqData \ "emailId").as[String]
@@ -79,40 +92,74 @@ object Application extends Controller {
       Ok(s"added $emailId to subscriber's list and will send updates every $interval\n")
   }
 
+  val toImplement = Action {
+    NotImplemented[play.twirl.api.Html](views.html.defaultpages.todo())
+  }
+
   import java.io.File
 
-  def createProfile = Action(parse.multipartFormData) {
-    request =>
-      val formData = request.body.asFormUrlEncoded
-      val email: String = formData.get("email").get(0)
-      val name: String = formData.get("name").get(0)
-      val userId: Long = User(email, name).save
-      request.body.file("displayPic").map {
-        picture =>
-          val path = "/socialize/user/"
-          if (!picture.filename.isEmpty) {
-            picture.ref.moveTo(new File(path + userId + ".jpeg"))
-          }
-          Ok("successfully added user")
-      }.getOrElse {
-        BadRequest("failed to add user")
+  def getReport(fileName: String) = Action.async {
+    Future {
+      val file: File = new File(fileName)
+      if (file.exists()) {
+        val info = file.lastModified()
+        Ok(s"lastModified on ${new Date(info)}")
+      }
+      NoContent
+    }
+  }
+
+  def getConfig = Action {
+    implicit request =>
+      val xmlResponse: Node = <metadata>
+      <company>TinySensors</company>
+        <batch>md2907</batch>
+      </metadata>
+
+      val jsonResonse = Json.obj("metadata" -> Json.arr(
+        Json.obj("company" -> "TinySensors"),
+        Json.obj("batch" -> "md2907")
+      ))
+      render {
+        case Accepts.Xml() => Ok(xmlResponse)
+        case Accepts.Json() => Ok(jsonResonse)
       }
   }
 
-  val parseAsSubscription = parse.using {
-    request =>
-      parse.json.map {
-        body =>
-          val emailId: String = (body \ "emailId").as[String]
-          val fromDate: String = (body \ "fromDate").as[String]
-          Subscription(emailId, fromDate)
-      }
-  }
+//  import java.io.File
 
-  implicit val subWrites = Json.writes[Subscription]
-  def getSub = Action(parseAsSubscription) {
-    request =>
-      val subscription: Subscription = request.body
-      Ok(Json.toJson(subscription))
-  }
+//  def createProfile = Action(parse.multipartFormData) {
+//    request =>
+//      val formData = request.body.asFormUrlEncoded
+//      val email: String = formData.get("email").get(0)
+//      val name: String = formData.get("name").get(0)
+//      val userId: Long = User(email, name).save
+//      request.body.file("displayPic").map {
+//        picture =>
+//          val path = "/socialize/user/"
+//          if (!picture.filename.isEmpty) {
+//            picture.ref.moveTo(new File(path + userId + ".jpeg"))
+//          }
+//          Ok("successfully added user")
+//      }.getOrElse {
+//        BadRequest("failed to add user")
+//      }
+//  }
+//
+//  val parseAsSubscription = parse.using {
+//    request =>
+//      parse.json.map {
+//        body =>
+//          val emailId: String = (body \ "emailId").as[String]
+//          val fromDate: String = (body \ "fromDate").as[String]
+//          Subscription(emailId, fromDate)
+//      }
+//  }
+//
+//  implicit val subWrites = Json.writes[Subscription]
+//  def getSub = Action(parseAsSubscription) {
+//    request =>
+//      val subscription: Subscription = request.body
+//      Ok(Json.toJson(subscription))
+//  }
 }
