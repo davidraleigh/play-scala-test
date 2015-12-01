@@ -1,11 +1,14 @@
 package controllers
 
 import java.util.Date
+import java.util.concurrent.TimeUnit
 
 import models.{Subscription, User, Artist}
 import play.api.libs.json.{Json, JsValue}
 
 import scala.concurrent.Future
+
+//import scala.concurrent.Future
 import scala.xml.Node
 
 //import com.esri.core.geometry.Polygon
@@ -97,17 +100,39 @@ object Application extends Controller {
   }
 
   import java.io.File
+  import play.api.libs.concurrent.Execution.Implicits._
 
-  def getReport(fileName: String) = Action.async {
-    Future {
-      val file: File = new File(fileName)
-      if (file.exists()) {
-        val info = file.lastModified()
-        Ok(s"lastModified on ${new Date(info)}")
-      }
-      NoContent
+//  def getReport(fileName: String) = Action.async {
+//    Future {
+//      val file: File = new File(fileName)
+//      if (file.exists()) {
+//        val info = file.lastModified()
+//        Ok(s"lastModified on ${new Date(info)}")
+//      } else {
+//        NoContent
+//      }
+//    }
+//  }
+
+  def getReport(fileName:String) = Action.async {
+
+    val maybeFile = Future {
+      new File(fileName)
+    }
+
+    val timeout = play.api.libs.concurrent.Promise.timeout("PastTime", 10, TimeUnit.SECONDS)
+    Future.firstCompletedOf(Seq(maybeFile, timeout)).map {
+      case f: File =>
+        if (f.exists()) {
+          val info = f.lastModified()
+          Ok(s"last modified ${new Date(info)}")
+        } else {
+          NoContent
+        }
+      case t: String => InternalServerError(t)
     }
   }
+
 
   def getConfig = Action {
     implicit request =>

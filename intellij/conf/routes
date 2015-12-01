@@ -5,6 +5,9 @@
 # Home page
 GET     /                           controllers.Application.index
 GET     /bananas                    controllers.Application.bananas
+GET     /products                   controllers.ProductsController.list
+GET     /prodcuts/:ean              controllers.ProductsController.show(ean: Long)
+GET     /barcode/:ean               controllers.Barcodes.barcode(ean: Long)
 # Tasks
 GET           /tasks                controllers.TaskController.tasks
 POST          /tasks                controllers.TaskController.newTask
